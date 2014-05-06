@@ -633,12 +633,17 @@ class VMOps(object):
                                             ephemeral_gb)
 
         # Attach (optional) configdrive v2 disk
+        self._attach_config_drive_if_required(instance, vm_ref, files,
+            admin_password, network_info)
+
+
+    def _attach_config_drive_if_required(self, instance, vm_ref, files,
+            admin_password, network_info):
+
         if configdrive.required_by(instance):
             vm_utils.generate_configdrive(self._session, instance, vm_ref,
-                                          DEVICE_CONFIGDRIVE,
-                                          network_info,
-                                          admin_password=admin_password,
-                                          files=files)
+                  DEVICE_CONFIGDRIVE, network_info,
+                  admin_password=admin_password, files=files)
 
     def _wait_for_instance_to_start(self, instance, vm_ref):
         LOG.debug(_('Waiting for instance state to become running'),
@@ -658,26 +663,7 @@ class VMOps(object):
 
         agent = self._get_agent(instance, vm_ref)
 
-        version = agent.get_version()
-        if not version:
-            LOG.debug(_("Skip agent setup, unable to contact agent."),
-                      instance=instance)
-            return
-
-        LOG.debug(_('Detected agent version: %s'), version, instance=instance)
-
-        # NOTE(johngarbutt) the agent object allows all of
-        # the following steps to silently fail
-        agent.inject_ssh_key()
-
-        if injected_files:
-            agent.inject_files(injected_files)
-
-        if admin_password:
-            agent.set_admin_password(admin_password)
-
-        agent.resetnetwork()
-        agent.update_if_needed(version)
+        agent.configure_agent(admin_password, injected_files)
 
     def _prepare_instance_filter(self, instance, network_info):
         try:

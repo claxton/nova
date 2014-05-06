@@ -366,6 +366,31 @@ class XenAPIBasedAgent(object):
         raw_value = sys_meta.get(key, 'False')
         return strutils.bool_from_string(raw_value, strict=False)
 
+    def configure_agent(self, admin_password, injected_files):
+
+        version = self.get_version()
+
+        if not version:
+            LOG.debug(_("Skip agent setup, unable to contact agent."),
+                      instance=self.instance)
+            return
+
+        LOG.debug(_('Detected agent version: %s'), version,
+                  instance=self.instance)
+
+        # NOTE(johngarbutt) the agent object allows all of
+        # the following steps to silently fail
+        self.inject_ssh_key()
+
+        if injected_files:
+            self.inject_files(injected_files)
+
+        if admin_password:
+            self.set_admin_password(admin_password)
+
+        self.resetnetwork()
+        self.update_if_needed(version)
+
 
 def find_guest_agent(base_dir):
     """tries to locate a guest agent at the path
