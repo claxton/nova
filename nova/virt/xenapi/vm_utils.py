@@ -1210,7 +1210,8 @@ def _create_config_drive(instance_md, device_path):
 
 
 def generate_configdrive(session, instance, vm_ref, userdevice,
-                         network_info, admin_password=None, files=None):
+                         network_info, admin_password=None, files=None,
+                         inject_network=False):
     vdi_ref = _create_vdi_for_config_drive(session, instance)
     extra_md = {}
     if admin_password:
@@ -1219,7 +1220,8 @@ def generate_configdrive(session, instance, vm_ref, userdevice,
     try:
         with vdi_attached_here(session, vdi_ref, read_only=False) as dev:
             inst_md = instance_metadata.InstanceMetadata(instance,
-                 content=files, extra_md=extra_md, network_info=network_info)
+                 content=files, extra_md=extra_md, network_info=network_info,
+                 inject_network=inject_network)
             _create_config_drive(inst_md, dev)
 
         create_vbd(session, vm_ref, vdi_ref, userdevice, bootable=False,

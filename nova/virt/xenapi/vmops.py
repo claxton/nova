@@ -641,9 +641,11 @@ class VMOps(object):
             admin_password, network_info):
 
         if configdrive.required_by(instance):
+            inject_network = xapi_agent.is_network_injected(instance)
             vm_utils.generate_configdrive(self._session, instance, vm_ref,
                   DEVICE_CONFIGDRIVE, network_info,
-                  admin_password=admin_password, files=files)
+                  admin_password=admin_password, files=files,
+                  inject_network=inject_network)
 
     def _wait_for_instance_to_start(self, instance, vm_ref):
         LOG.debug(_('Waiting for instance state to become running'),
@@ -654,6 +656,7 @@ class VMOps(object):
             if state == power_state.RUNNING:
                 break
             greenthread.sleep(0.5)
+
 
     def _configure_new_instance_with_agent(self, instance, vm_ref,
                                            injected_files, admin_password):

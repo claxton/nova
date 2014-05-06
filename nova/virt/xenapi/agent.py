@@ -37,7 +37,9 @@ from nova import utils
 
 
 USE_AGENT_KEY = "xenapi_use_agent"
+INJECT_NW_KEY = "inject_network"
 USE_AGENT_SM_KEY = utils.SM_IMAGE_PROP_PREFIX + USE_AGENT_KEY
+INJECT_NW_SM_KEY = utils.SM_IMAGE_PROP_PREFIX + INJECT_NW_KEY
 SKIP_SSH_KEY = "xenapi_skip_agent_inject_ssh"
 SKIP_SSH_SM_KEY = utils.SM_IMAGE_PROP_PREFIX + SKIP_SSH_KEY
 SKIP_FILES_AT_BOOT_KEY = "xenapi_skip_agent_inject_files_at_boot"
@@ -82,7 +84,7 @@ xenapi_agent_opts = [
     cfg.BoolOpt('use_agent_default',
                 default=False,
                 deprecated_name='xenapi_use_agent_default',
-                deprecated_group='DEFAULT',
+                deprecated_group='xenserver',
                 help='Determines if the XenAPI agent should be used when '
                      'the image used does not contain a hint to declare if '
                      'the agent is present or not. '
@@ -388,7 +390,9 @@ class XenAPIBasedAgent(object):
         if admin_password:
             self.set_admin_password(admin_password)
 
-        self.resetnetwork()
+        if not is_network_injected(self.instance):
+            self.resetnetwork()
+
         self.update_if_needed(version)
 
 
@@ -424,11 +428,9 @@ def find_guest_agent(base_dir):
     return False
 
 
-def should_use_agent(instance):
+def get_user_use_agent_preference(instance):
     sys_meta = utils.instance_sys_meta(instance)
-    if USE_AGENT_SM_KEY not in sys_meta:
-        return CONF.xenserver.use_agent_default
-    else:
+    if USE_AGENT_SM_KEY in sys_meta:
         use_agent_raw = sys_meta[USE_AGENT_SM_KEY]
         try:
             return strutils.bool_from_string(use_agent_raw, strict=True)
@@ -436,7 +438,24 @@ def should_use_agent(instance):
             LOG.warn(_("Invalid 'agent_present' value. "
                        "Falling back to the default."),
                        instance=instance)
-            return CONF.xenserver.use_agent_default
+
+
+def should_use_agent(instance):
+    use_agent = get_user_use_agent_preference(instance)
+    if use_agent:
+        return use_agent
+    return CONF.xenserver.use_agent_default
+
+def is_network_injected(instance):
+    sys_meta = utils.instance_sys_meta(instance)
+    if INJECT_NW_SM_KEY in sys_meta:
+        inject_network = sys_meta[INJECT_NW_SM_KEY]
+        try:
+            return strutils.bool_from_string(inject_network, strict=True)
+        except ValueError:
+            LOG.warn(_("Invalid 'inject_network' value. "
+                       "Falling back to the default."),
+                       instance=instance)
 
 
 class SimpleDH(object):
